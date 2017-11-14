@@ -249,12 +249,18 @@ extractStackTrace <- function(calls,
   index <- rev(which(toShow))
   width <- floor(log10(max(index))) + 1
 
-  data.frame(
+  # PDT Remove these also
+  uninteresting <- c("withCallingHandlers", "captureStackTraces",
+    "withLogErrors", "withCallingHandlers", "suppressWarnings",
+    "doTryCatch", "tryCatchOne", "tryCatchList", "tryCatch")
+
+  trace <- data.frame(
     num = index,
     call = getCallNames(calls),
     loc = getLocs(calls),
     stringsAsFactors = FALSE
   )
+  subset(trace, !(call %in% uninteresting))
 }
 
 #' @details \code{formatStackTrace} is similar to \code{extractStackTrace}, but
@@ -332,3 +338,20 @@ conditionStackTrace <- function(cond) {
 #' @rdname stacktrace
 #' @export
 ..stacktraceoff.. <- function(expr) expr
+
+
+#' @details Like tryCatch, except returns a simpleMessage if an error occurred
+#' when evaluating expr. Check the return value of tryStack and salvage the stack
+#' for logging like this:
+#'     f <- function() { stop("boom!") }
+#'     result <- tryStack({f()})
+#'     if (is(result, "simpleMessage")) {
+#'        stack <- strsplit(result$message, "\n")[[1]]
+#'     }
+#' @param expr The expression to be tried
+#' @rdname stacktrace
+#' @export
+tryStack <- function(expr) {
+  tryCatch(suppressWarnings(withLogErrors(expr)),
+    message = function(m) { m })
+}
