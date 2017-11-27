@@ -1,3 +1,7 @@
+source("errorTypes.R")
+source("asyncTask.R")
+source("InitFunctions.R")
+source("BoundExperimentDefinition.R")
 
 
 pdtStateVars <<- c("demoflag"
@@ -59,8 +63,35 @@ loadPDTstate <- function() {
   load(stateFile, envir = .GlobalEnv)
 }
 
-# -----
-SetupSaveInitialExperimentsTask <- function(df, requestId) {
+# ----- SaveDefinition
+SetupSaveExperimentDefinitionTask <- function(requestId) {
+  task <- AsyncTask$new(requestId)
+  setPDTstate("curTask", task)
+
+  task$set.phase("save_esd:setup")
+  task$log.info("SetupSaveExperimentDefinitionTask")
+  task
+}
+
+SaveExperimentDefinition <- function(requestId, expDef, popSize, numRepeat, totalVolume) {
+  task <- SetupSaveExperimentDefinitionTask(requestId)
+  task$start({
+    task$set.phase("save_esd:validate")
+    BoundExperimentDefinition(experimentDefinition = expDef, popSize = popSize, numRepeat = numRepeat, totalVolume = totalVolume)
+  })
+  task
+}
+
+
+testExpDef <- read.csv(file = "esd-9x5.csv")
+colnames(testExpDef) <- c("Name", lapply(1:(NCOL(testExpDef)-1), function(i) { paste0("Value.", i) }))
+t1 <- SaveExperimentDefinition("D.1001", testExpDef, 32, 2, NULL)
+t2 <- SaveExperimentDefinition("D.1002", testExpDef, 5, 1, NULL)
+what <- tryCatch(t2$result(), experiment_definition_validation_error = function(e) e)
+
+
+# ----- SaveInitialExperiments
+SetupSaveInitialExperimentsTask <- function(requestId, df) {
   task <- AsyncTask$new(requestId)
   setPDTstate("curTask", task)
 
@@ -91,8 +122,8 @@ AutoSampleNextGen <- function() {
   mtcars
 }
 
-SaveInitialExperiments <- function(df, requestId) {
-  task <- SetupSaveInitialExperimentsTask(df, requestId)
+SaveInitialExperiments <- function(requestId, df) {
+  task <- SetupSaveInitialExperimentsTask(requestId, df)
   task$start({
     task$set.phase("gen_one:auto_incorporate")
     AutoIncorporateExperiments()
@@ -107,7 +138,3 @@ SaveInitialExperiments <- function(df, requestId) {
   })
   task
 }
-
-t <- SaveInitialExperiments(mtcars, "X.1000")
-t$result()
-t$last.progress()

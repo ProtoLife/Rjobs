@@ -1,5 +1,3 @@
-
-
 library(R6)
 library(parallel)
 library(stringr)
@@ -142,7 +140,7 @@ AsyncTask <- R6Class("AsyncTask",
         private$check()
       }
       private$state == "error" || private$state == "cancel"
-    }
+    },
     result = function() {
       if (private$state == "running") {
         private$check()
