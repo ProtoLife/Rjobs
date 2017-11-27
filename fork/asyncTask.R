@@ -59,10 +59,12 @@ AsyncTask <- R6Class("AsyncTask",
         if (!is.null(res)) {
           if (!is.list(res) || length(res) != 1 || !inherits(res[[1]], "try-error")) {
             self$log.debug(paste0("task ", private$name, " succeeded"))
+            private$handle <- NULL
             private$state <- "success"
             private$res <- res[[1]]
           } else {
             self$log.debug(paste0("task ", private$name, " failed"))
+            private$handle <- NULL
             private$state <- "error"
             private$res <- attr(res[[1]], "condition", exact = TRUE)
           }
@@ -135,6 +137,12 @@ AsyncTask <- R6Class("AsyncTask",
       }
       private$state == "success" || private$state == "error" || private$state == "cancel"
     },
+    failed = function() {
+      if (private$state == "running") {
+        private$check()
+      }
+      private$state == "error" || private$state == "cancel"
+    }
     result = function() {
       if (private$state == "running") {
         private$check()
@@ -152,12 +160,16 @@ AsyncTask <- R6Class("AsyncTask",
     },
     cancel = function() {
       if (private$state == "running") {
-        private$state <- "cancel"
-        self$log.debug(paste0("task ", private$name, " canceling"))
-        tools::pskill(private$handle$pid, tools::SIGTERM)
-        tools::pskill(-private$handle$pid, tools::SIGTERM)
-        parallel::mccollect(private$handle, wait = FALSE)
-        self$log.debug(paste0("task ", private$name, " canceled"))
+        private$check()
+        if (private$state == "running" && !is.null(private$handle)) {
+          private$state <- "cancel"
+          self$log.debug(paste0("task ", private$name, " canceling"))
+          tools::pskill(private$handle$pid, tools::SIGTERM)
+          tools::pskill(-private$handle$pid, tools::SIGTERM)
+          parallel::mccollect(private$handle, wait = FALSE)
+          private$handle <- NULL
+          self$log.debug(paste0("task ", private$name, " canceled"))
+        }
       }
       invisible(private$state)
     }
