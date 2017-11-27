@@ -77,7 +77,9 @@ SaveExperimentDefinition <- function(requestId, expDef, popSize, numRepeat, tota
   task <- SetupSaveExperimentDefinitionTask(requestId)
   task$start({
     task$set.phase("save_esd:validate")
-    BoundExperimentDefinition(experimentDefinition = expDef, popSize = popSize, numRepeat = numRepeat, totalVolume = totalVolume)
+    task$log.info("BoundExperimentDefinition")
+    BoundExperimentDefinition(experimentDefinition = expDef,
+      popSize = popSize, numRepeat = numRepeat, totalVolume = totalVolume)
   })
   task
 }
