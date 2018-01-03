@@ -19,6 +19,7 @@ pdtStateVars <<- c("demoflag"
   , "curInput"
 )
 
+
 createPDTstate <- function(isdemo = FALSE) {
   stateFile <<- "PDTstate.RData"
   demoflag <<- isdemo
@@ -43,9 +44,11 @@ createPDTstate <- function(isdemo = FALSE) {
   cat(file = stderr(), paste(stateFile, "created.\n"))
 }
 
+
 savePDTstate <- function() {
-  save(file = stateFile, list = pdtStateVars, envir = .GlobalEnv) # ascii = FALSE
+  save(file = stateFile, list = pdtStateVars, envir = .GlobalEnv, ascii = TRUE)
 }
+
 
 setPDTstate <- function(s, val) {
   if (!exists("stateFile"))
@@ -57,11 +60,13 @@ setPDTstate <- function(s, val) {
   savePDTstate()
 }
 
+
 loadPDTstate <- function() {
   if (!exists("stateFile"))
     createPDTstate()
   load(stateFile, envir = .GlobalEnv)
 }
+
 
 # ----- SaveDefinition
 SetupSaveExperimentDefinitionTask <- function(requestId) {
@@ -73,6 +78,7 @@ SetupSaveExperimentDefinitionTask <- function(requestId) {
   task
 }
 
+
 SaveExperimentDefinition <- function(requestId, expDef, popSize, numRepeat, totalVolume) {
   task <- SetupSaveExperimentDefinitionTask(requestId)
   task$start({
@@ -83,13 +89,6 @@ SaveExperimentDefinition <- function(requestId, expDef, popSize, numRepeat, tota
   })
   task
 }
-
-
-testExpDef <- read.csv(file = "esd-9x5.csv")
-colnames(testExpDef) <- c("Name", lapply(1:(NCOL(testExpDef)-1), function(i) { paste0("Value.", i) }))
-t1 <- SaveExperimentDefinition("D.1001", testExpDef, 32, 2, NULL)
-t2 <- SaveExperimentDefinition("D.1002", testExpDef, 5, 1, NULL)
-what <- tryCatch(t2$result(), experiment_definition_validation_error = function(e) e)
 
 
 # ----- SaveInitialExperiments
@@ -104,17 +103,21 @@ SetupSaveInitialExperimentsTask <- function(requestId, df) {
   task
 }
 
+
 AutoIncorporateExperiments <- function() {
   curTask$log.info("AutoIncorporateExperiments")
 }
+
 
 AutoSnapshot <- function() {
   curTask$log.info("AutoSnapshot")
 }
 
+
 AutoUpdateCurrentGen <- function() {
   curTask$log.info("AutoUpdateCurrentGen")
 }
+
 
 AutoSampleNextGen <- function() {
   curTask$log.info("AutoSampleNextGen")
@@ -123,6 +126,7 @@ AutoSampleNextGen <- function() {
   }
   mtcars
 }
+
 
 SaveInitialExperiments <- function(requestId, df) {
   task <- SetupSaveInitialExperimentsTask(requestId, df)
@@ -140,3 +144,24 @@ SaveInitialExperiments <- function(requestId, df) {
   })
   task
 }
+
+
+# Read CSV file (no header), then create column header
+LoadESD <- function(file) {
+  esd <- read.csv(file = file)
+  colnames(esd) <- c("Name", lapply(1:(NCOL(esd)-1), function(i) { paste0("Value.", i) }))
+  esd
+}
+
+
+# Testing code. Load ESD and set up two validation tasks
+esd <- LoadESD("esd-9x5.csv")
+t1 <- SaveExperimentDefinition("D.1001", esd, 32, 2, NULL)
+t2 <- SaveExperimentDefinition("D.1002", esd, 5, 1, NULL)
+
+
+# After some time has passed call this:
+# what <- tryCatch(t2$result(), experiment_definition_validation_error = function(e) e)
+# <experiment_definition_validation_error in experiment_definition_validation_error(errorMessage):
+# Invalid experiment definition: The population size is less than the minimum allowed of 10
+# for this experimental space.>
