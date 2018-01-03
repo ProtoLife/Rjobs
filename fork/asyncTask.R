@@ -83,16 +83,20 @@ AsyncTask <- R6Class("AsyncTask",
         self$cancel()
       }
     },
-    # Launch the task in a forked process. This always returns
+    # Launch the task in a forked child process. This always returns
     # immediately, and we get back a handle we can use to monitor
-    # or kill the job.
+    # or kill the job (child process).
+    # private$handle is a "parallelJob" S3 class, a subclass of "childProcess"
+    # from mcfork(), with these components:
+    # private$handle$pid - child process's pid
+    # private$handle$fd[[1]] - child process's pipe fd (for reading)
+    # private$handle$fd[[2]] - child process's stdin fd (for writing)
+    # private$handle$name - copy of name passed to initialize() function
     start = function(expr) {
       if (private$state == "new") {
         self$log.debug(paste0("task ", private$name, " starting"))
         private$state <- "running"
-        private$handle <- parallel::mcparallel({
-          force(expr)
-        })
+        private$handle <- parallel::mcparallel({ force(expr) }, private$name)
         private$check()
       }
       invisible(private$state)
@@ -170,6 +174,27 @@ AsyncTask <- R6Class("AsyncTask",
         }
       }
       invisible(private$state)
+    },
+    child.readLines = function(n = -1L, ok = TRUE, warn = TRUE,
+          encoding = "unknown", skipNul = FALSE) {
+      if (private$state == "running") {
+        private$check()
+        if (private$state == "running" &&
+          !is.null(private$handle) && !is.null(private$handle$fd[[1]])) {
+          return(readLines(private$handle$fd[[1]], n = n, ok = ok, warn = warn,
+            encoding = encoding, skipNul = skipNul))
+        }
+      }
+      character(0)
+    },
+    child.cat = function(... , sep = " ", fill = FALSE, labels = NULL) {
+      if (private$state == "running") {
+        private$check()
+        if (private$state == "running" &&
+          !is.null(private$handle)  && !is.null(private$handle$fd[[2]])) {
+            cat(..., file = private$handle$fd[[2]], sep = sep, fill = fill, labels = labels)
+        }
+      }
     }
   )
 )

@@ -106,6 +106,8 @@ SetupSaveInitialExperimentsTask <- function(requestId, df) {
 
 AutoIncorporateExperiments <- function() {
   curTask$log.info("AutoIncorporateExperiments")
+  # Test whether we can read from the child's output
+  cat("child process outuput")
 }
 
 
@@ -130,6 +132,8 @@ AutoSampleNextGen <- function() {
 
 SaveInitialExperiments <- function(requestId, df) {
   task <- SetupSaveInitialExperimentsTask(requestId, df)
+
+  # These functions will be run in the child process!
   task$start({
     task$set.phase("gen_one:auto_incorporate")
     AutoIncorporateExperiments()
@@ -158,6 +162,10 @@ LoadESD <- function(file) {
 esd <- LoadESD("esd-9x5.csv")
 t1 <- SaveExperimentDefinition("D.1001", esd, 32, 2, NULL)
 t2 <- SaveExperimentDefinition("D.1002", esd, 5, 1, NULL)
+data <- c()
+while (length(line <- t1$child.readLines(n = 1, warn = FALSE)) > 0) {
+  data <- c(data, line)
+}
 
 
 # After some time has passed call this:
